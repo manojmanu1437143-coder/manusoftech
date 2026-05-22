@@ -183,21 +183,21 @@ export default function App() {
 
     setIsSubmitting(true);
 
+    const contactData = {
+      name: contactName.trim(),
+      email: contactEmail.trim(),
+      phone: contactPhone.trim(),
+      service: contactService || 'General Inquiry',
+      message: contactMessage.trim() || null,
+      type: 'contact',
+      status: 'New'
+    };
+
     try {
       // Connect and save into Supabase contact_messages table
       const { error } = await supabase
         .from('contact_messages')
-        .insert([
-          {
-            name: contactName.trim(),
-            email: contactEmail.trim(),
-            phone: contactPhone.trim(),
-            service: contactService || 'General Inquiry',
-            message: contactMessage.trim() || null,
-            type: 'contact',
-            status: 'New'
-          }
-        ]);
+        .insert([contactData]);
 
       if (error) {
         throw error;
@@ -205,9 +205,25 @@ export default function App() {
 
       setToastMessage('✅ Your message is logged! We will get back to you soon.');
     } catch (err: any) {
-      console.warn('Supabase DB inert failed (likely table setup is missing). Logging to mock success:', err);
-      // Fallback with custom note to nudge the owner to setup the table structure
-      setToastMessage('✨ Message stored in Local Demo Mode! Open the Admin CRM below to construct tables.');
+      console.warn('Supabase DB insert failed (likely table setup is missing). Logging to mock success:', err);
+      
+      // Real-time offline fallback backup
+      const localMsg = {
+        ...contactData,
+        id: 'local_' + Date.now(),
+        created_at: new Date().toISOString()
+      };
+      
+      try {
+        const existing = localStorage.getItem('local_contact_messages');
+        const list = existing ? JSON.parse(existing) : [];
+        list.unshift(localMsg);
+        localStorage.setItem('local_contact_messages', JSON.stringify(list));
+      } catch (storageErr) {
+        console.error('LocalStorage write failed:', storageErr);
+      }
+
+      setToastMessage('✨ Message stored in Local Demo Mode! Open the Database Portal below to see inquiries.');
     } finally {
       setIsSubmitting(false);
       setShowToast(true);
@@ -218,6 +234,17 @@ export default function App() {
       setContactService('');
       setContactMessage('');
       setTimeout(() => setShowToast(false), 5000);
+    }
+  };
+
+  const handleGetQuoteClick = () => {
+    if (!currentUser) {
+      setToastMessage('🔑 Please Sign In or Create an Account first to request a quote!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+      setAuthModalOpen(true);
+    } else {
+      setQuoteModalOpen(true);
     }
   };
 
@@ -327,7 +354,7 @@ export default function App() {
           )}
 
           <button 
-            onClick={() => setQuoteModalOpen(true)}
+            onClick={handleGetQuoteClick}
             onMouseEnter={() => handleInteractiveHover(true)} 
             onMouseLeave={() => handleInteractiveHover(false)}
             className="px-5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 font-exo font-bold text-xs tracking-widest uppercase duration-300 shadow-[0_0_20px_rgba(0,212,255,0.25)] hover:shadow-[0_0_30px_rgba(0,212,255,0.45)] hover:-translate-y-0.5 transition-all text-white"
@@ -398,7 +425,7 @@ export default function App() {
               <Lock size={14} /> CRM Admin Portal
             </button>
             <button 
-              onClick={() => { setQuoteModalOpen(true); setMobileMenuOpen(false); }}
+              onClick={() => { handleGetQuoteClick(); setMobileMenuOpen(false); }}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-400 text-white font-exo font-extrabold text-sm tracking-widest uppercase rounded-lg"
             >
               Get Free Quote
@@ -438,7 +465,7 @@ export default function App() {
               Explore Services
             </a>
             <button 
-              onClick={() => setQuoteModalOpen(true)}
+              onClick={handleGetQuoteClick}
               onMouseEnter={() => handleInteractiveHover(true)} 
               onMouseLeave={() => handleInteractiveHover(false)}
               className="px-8 py-3.5 rounded-lg border border-sky-400/25 bg-sky-200/5 text-sky-300 hover:bg-sky-200/15 hover:border-cyan-400 font-exo font-bold text-sm tracking-widest uppercase transition-colors"
@@ -697,79 +724,100 @@ export default function App() {
           <div className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Inquiry Form</div>
           <h3 className="font-exo font-bold text-xl text-white">Send Us a Quick Message</h3>
           
-          <form onSubmit={handleContactSubmit} className="space-y-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your Name *</label>
-              <input 
-                type="text" 
-                required
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="John Doe"
-                className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
-              />
-            </div>
+          {currentUser ? (
+            <form onSubmit={handleContactSubmit} className="space-y-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address *</label>
-              <input 
-                type="email" 
-                required
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="john@example.com"
-                className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address *</label>
+                <input 
+                  type="email" 
+                  required
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contact Number *</label>
-              <input 
-                type="tel" 
-                required
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
-                className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Contact Number *</label>
+                <input 
+                  type="tel" 
+                  required
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-medium"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Service Required</label>
-              <select 
-                value={contactService}
-                onChange={(e) => setContactService(e.target.value)}
-                className="w-full bg-[#06122d] border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-bold"
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Service Required</label>
+                <select 
+                  value={contactService}
+                  onChange={(e) => setContactService(e.target.value)}
+                  className="w-full bg-[#06122d] border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors font-bold"
+                >
+                  <option value="">Select a service...</option>
+                  <option value="UI/UX Design">UI/UX Design</option>
+                  <option value="Website Designing">Website Designing</option>
+                  <option value="Mobile App Development">Mobile App Development</option>
+                  <option value="E-Commerce Website">E-Commerce Website</option>
+                  <option value="2D / 3D Animation">2D / 3D Animation</option>
+                  <option value="Custom Solution">Custom Solution</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your Message</label>
+                <textarea 
+                  rows={3}
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Tell us about your project or requirements..."
+                  className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors resize-none font-medium"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-exo font-bold text-sm tracking-widest uppercase rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
               >
-                <option value="">Select a service...</option>
-                <option value="UI/UX Design">UI/UX Design</option>
-                <option value="Website Designing">Website Designing</option>
-                <option value="Mobile App Development">Mobile App Development</option>
-                <option value="E-Commerce Website">E-Commerce Website</option>
-                <option value="2D / 3D Animation">2D / 3D Animation</option>
-                <option value="Custom Solution">Custom Solution</option>
-              </select>
+                {isSubmitting ? 'Sending...' : 'Send Message ✈'}
+              </button>
+            </form>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6 bg-[#040c1e]/60 border border-sky-400/10 rounded-xl">
+              <div className="w-16 h-16 rounded-full bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-cyan-300 animate-pulse text-2xl">
+                🔒
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-exo font-extrabold text-lg text-white tracking-wide uppercase">Login Required</h4>
+                <p className="text-sm text-gray-400 max-w-sm leading-relaxed font-rajdhani">
+                  Please sign up or sign in to activate the secure inquiry transmission pipeline and log a message or requirements with our master engineers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-exo font-extrabold text-xs tracking-widest uppercase rounded-lg transition-all shadow-[0_0_15px_rgba(0,212,255,0.2)] hover:shadow-[0_0_25px_rgba(0,212,255,0.4)]"
+              >
+                Sign In / Sign Up 🔑
+              </button>
             </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your Message</label>
-              <textarea 
-                rows={3}
-                value={contactMessage}
-                onChange={(e) => setContactMessage(e.target.value)}
-                placeholder="Tell us about your project or requirements..."
-                className="w-full bg-white/5 border border-sky-400/25 rounded-lg py-2.5 px-4 text-sm text-white focus:border-cyan-400 outline-none transition-colors resize-none font-medium"
-              />
-            </div>
-
-            <button 
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-exo font-bold text-sm tracking-widest uppercase rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            >
-              {isSubmitting ? 'Sending...' : 'Send Message ✈'}
-            </button>
-          </form>
+          )}
         </div>
       </section>
 

@@ -48,22 +48,22 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ onClose, onSuccess }) =>
     setLoading(true);
     setErrorMsg(null);
 
+    const quoteData = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      company: formData.company.trim() || null,
+      service: formData.service || 'General Consulting',
+      budget: formData.budget || null,
+      message: formData.message.trim() || null,
+      type: 'quote',
+      status: 'New'
+    };
+
     try {
       const { error } = await supabase
         .from('contact_messages')
-        .insert([
-          {
-            name: formData.name.trim(),
-            email: formData.email.trim(),
-            phone: formData.phone.trim(),
-            company: formData.company.trim() || null,
-            service: formData.service || 'General Consulting',
-            budget: formData.budget || null,
-            message: formData.message.trim() || null,
-            type: 'quote',
-            status: 'New'
-          }
-        ]);
+        .insert([quoteData]);
 
       if (error) throw error;
 
@@ -71,7 +71,23 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ onClose, onSuccess }) =>
       onClose();
     } catch (err: any) {
       console.error('Error submitting quote request:', err);
-      // Fallback behavior if table isn't created yet -> mock local success
+      
+      // Save local storage fallback backup
+      const localMsg = {
+        ...quoteData,
+        id: 'local_' + Date.now(),
+        created_at: new Date().toISOString()
+      };
+      
+      try {
+        const existing = localStorage.getItem('local_contact_messages');
+        const list = existing ? JSON.parse(existing) : [];
+        list.unshift(localMsg);
+        localStorage.setItem('local_contact_messages', JSON.stringify(list));
+      } catch (storageErr) {
+        console.error('LocalStorage write failed:', storageErr);
+      }
+
       onSuccess();
       onClose();
     } finally {

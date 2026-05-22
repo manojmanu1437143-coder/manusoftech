@@ -25,19 +25,39 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from('contact_messages')
-        .select('*')
-        .eq('email', userEmail)
-        .order('created_at', { ascending: false });
+      // Find matching contact messages in localStorage
+      const localMsgStr = localStorage.getItem('local_contact_messages');
+      const localMsgs = localMsgStr ? JSON.parse(localMsgStr) : [];
+      const userLocal = localMsgs.filter((m: any) => m.email?.toLowerCase() === userEmail?.toLowerCase());
 
-      if (error) {
-        throw error;
+      let fetchedData: any[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('contact_messages')
+          .select('*')
+          .eq('email', userEmail)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+        fetchedData = data || [];
+      } catch (dbErr: any) {
+        console.warn('Supabase fetch failed (table may not exist yet). Using local user messages only.', dbErr);
       }
 
-      setMessages(data || []);
+      const localIds = new Set(userLocal.map((m: any) => m.id));
+      const filteredDb = fetchedData.filter(d => !localIds.has(d.id));
+
+      const merged = [...userLocal, ...filteredDb].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setMessages(merged);
     } catch (err: any) {
-      console.warn('Error fetching client inquiries from Supabase:', err);
+      console.warn('Error fetching client inquiries:', err);
       setErrorMsg(err.message || 'Unable to load client table from database.');
     } finally {
       setLoading(false);
