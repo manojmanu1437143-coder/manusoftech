@@ -1,0 +1,6 @@
+{
+  "name": "MANUSOFtech Portal",
+  "description": "Premium interactive software agency portal for MANUSOFtech featuring services, 3D interactive graphics, and a Supabase backend for lead management CRM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

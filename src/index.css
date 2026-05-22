@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-exo: "Exo 2", sans-serif;
+  --font-rajdhani: "Rajdhani", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background-color: #0d1b3e;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar for an ultra-premium tech feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #060f26;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Base styles for the 3D rotating cube */
+.cube-scene {
+  perspective: 600px;
+}
+.cube {
+  transform-style: preserve-3d;
+  animation: spinCube 16s linear infinite;
+}
+@keyframes spinCube {
+  from { transform: rotateX(20deg) rotateY(0deg); }
+  to   { transform: rotateX(20deg) rotateY(360deg); }
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  backdrop-filter: blur(10px);
+}
+
